@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Нить — привычки и задачи</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#C9BFEE">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FAF7FC; --card:#FFFFFF; --ink:#4A4458; --ink-soft:#847C96; --muted:#B3ABC2; --line:#EEE8F5;
+    --lavender:#C9BFEE; --lavender-soft:#EFEBFC;
+    --mint:#A9DFC4; --mint-soft:#E6F7EE;
+    --blush:#F3B8CE; --blush-soft:#FCE9F1;
+    --sky:#AAD6F0; --sky-soft:#E7F4FC;
+    --butter:#F3DE8E; --butter-soft:#FBF5DE;
+    --peach:#F3C4A8; --peach-soft:#FCEDE3;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{ background:var(--bg); color:var(--ink); font-family:'Nunito',sans-serif; min-height:100vh; }
+  .app{max-width:640px;margin:0 auto;padding:44px 22px 96px;}
+  .header{margin-bottom:24px;}
+  .eyebrow{font-weight:700;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin:0 0 6px;}
+  h1{font-family:'Fredoka',sans-serif;font-weight:600;font-size:32px;margin:0 0 4px;color:var(--ink);}
+  .sub{color:var(--ink-soft);font-size:14px;margin:0;}
+  .tabs{display:flex;gap:4px;margin:26px 0 22px;background:var(--card);padding:5px;border-radius:16px;border:1px solid var(--line);}
+  .tab-btn{flex:1;background:none;border:none;font-weight:700;font-size:12px;color:var(--ink-soft);padding:10px 2px;cursor:pointer;border-radius:12px;}
+  .tab-btn.active{color:var(--ink);background:var(--lavender-soft);}
+  .view{display:none;}
+  .view.active{display:block;}
+  .progress-card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px 20px;margin-bottom:18px;}
+  .progress-top{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;}
+  .progress-top .big{font-family:'Fredoka',sans-serif;font-size:26px;font-weight:600;color:var(--ink);}
+  .progress-top .of{color:var(--ink-soft);font-size:13px;}
+  .progress-track{height:10px;background:var(--lavender-soft);border-radius:20px;overflow:hidden;}
+  .progress-fill{height:100%;background:var(--lavender);border-radius:20px;transition:width .3s;}
+  .habit-card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px 18px;margin-bottom:12px;position:relative;}
+  .habit-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .habit-name-row{display:flex;align-items:center;gap:10px;}
+  .dot{width:13px;height:13px;border-radius:50%;flex-shrink:0;}
+  .habit-name{font-size:15px;font-weight:700;color:var(--ink);}
+  .streak{font-weight:700;font-size:12px;color:var(--ink);padding:4px 10px;border-radius:20px;white-space:nowrap;}
+  .streak.zero{color:var(--muted);background:var(--bg);}
+  .icon-btn{background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:2px 6px;opacity:0;transition:opacity .15s;line-height:1;}
+  .habit-card:hover .icon-btn{opacity:1;}
+  .icon-btn:hover{color:var(--blush);}
+  .icon-btn.bell-on{opacity:1;color:var(--lavender);}
+  .stitch-row{display:flex;align-items:center;}
+  .stitch-day{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;}
+  .stitch-wrap{display:flex;align-items:center;width:100%;}
+  .node-btn{width:27px;height:27px;border-radius:50%;border:2px solid var(--line);background:var(--bg);cursor:pointer;flex-shrink:0;transition:transform .1s;}
+  .node-btn:active{transform:scale(0.9);}
+  .node-btn.today{box-shadow:0 0 0 3px var(--lavender-soft);}
+  .day-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:lowercase;}
+  .connector{height:2px;flex:1;background:var(--line);}
+  .connector.done{background:var(--lavender);}
+  .reminder-row{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);}
+  .reminder-row input[type=time]{border:1px solid var(--line);border-radius:8px;padding:3px 6px;font-size:12px;background:var(--bg);color:var(--ink);font-family:'Nunito',sans-serif;}
+  .empty{padding:40px 20px;text-align:center;color:var(--muted);border:2px dashed var(--line);border-radius:20px;}
+  .empty p{font-family:'Fredoka',sans-serif;font-size:16px;margin:0 0 4px;color:var(--ink-soft);}
+  .empty span{font-size:13px;}
+  .add-form{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px 18px;display:none;}
+  .add-form.open{display:block;}
+  .add-form input[type=text]{width:100%;font-size:15px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;font-family:'Nunito',sans-serif;background:var(--bg);color:var(--ink);margin-bottom:12px;}
+  .add-form input[type=text]:focus{outline:none;border-color:var(--lavender);}
+  .color-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+  .color-swatch{width:26px;height:26px;border-radius:50%;cursor:pointer;border:2px solid transparent;}
+  .color-swatch.selected{border-color:var(--ink);}
+  .form-actions{display:flex;gap:10px;}
+  button.primary{background:var(--lavender);color:#3D3556;border:none;font-weight:700;font-size:14px;padding:10px 18px;border-radius:12px;cursor:pointer;font-family:'Nunito',sans-serif;}
+  button.ghost{background:none;border:1px solid var(--line);color:var(--ink-soft);font-weight:700;font-size:14px;padding:10px 18px;border-radius:12px;cursor:pointer;font-family:'Nunito',sans-serif;}
+  .add-toggle{margin-top:18px;width:100%;background:var(--card);border:2px dashed var(--line);color:var(--ink-soft);font-weight:700;font-size:14px;padding:13px;border-radius:20px;cursor:pointer;font-family:'Nunito',sans-serif;}
+  .add-toggle:hover{border-color:var(--lavender);color:var(--ink);}
+  .task-group-title{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin:18px 0 8px;}
+  .task-group-title:first-child{margin-top:0;}
+  .task-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;margin-bottom:8px;background:var(--card);border:1px solid var(--line);}
+  .task-check{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);background:var(--bg);cursor:pointer;flex-shrink:0;}
+  .task-check.done{background:var(--mint);border-color:var(--mint);}
+  .task-body{flex:1;min-width:0;}
+  .task-text{font-size:14px;font-weight:600;display:block;}
+  .task-text.done{color:var(--muted);text-decoration:line-through;}
+  .task-meta{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;}
+  .task-tag{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;color:var(--ink-soft);background:var(--bg);}
+  .task-tag.overdue{color:#a05a6b;background:var(--blush-soft);}
+  .task-input-row{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;}
+  .task-input-row input[type=text].task-main{flex:1 1 160px;}
+  .task-input-row input{font-size:13px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;font-family:'Nunito',sans-serif;background:var(--card);color:var(--ink);}
+  .task-input-row input[type=date]{flex:0 0 130px;}
+  .task-input-row input[type=text].task-cat{flex:0 0 110px;}
+  .task-input-row input:focus{outline:none;border-color:var(--lavender);}
+  .stat-block{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px 18px;margin-bottom:14px;overflow:hidden;box-sizing:border-box;}
+  .stat-title{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .stat-title .dot{width:11px;height:11px;}
+  .stat-name{font-size:14px;font-weight:700;}
+  .stat-nums{display:flex;gap:16px;margin-bottom:12px;}
+  .stat-num{font-size:12px;color:var(--ink-soft);font-weight:600;}
+  .stat-num b{color:var(--ink);font-weight:700;}
+  .cal-weekdays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-bottom:6px;}
+  .cal-weekdays span{font-size:10px;text-align:center;color:var(--muted);font-weight:700;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;width:100%;}
+  .cal-cell{aspect-ratio:1;min-width:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;border-radius:8px;color:var(--ink-soft);background:var(--bg);box-sizing:border-box;}
+  .cal-cell.empty{background:transparent;}
+  .cal-cell.today{box-shadow:inset 0 0 0 2px var(--lavender);}
+  .chart-wrap{position:relative;height:160px;}
+  .mood-picker{display:flex;gap:8px;justify-content:space-between;}
+  .mood-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:14px;border:2px solid var(--line);background:var(--bg);cursor:pointer;}
+  .mood-btn.selected{border-color:var(--ink);}
+  .mood-emoji{font-size:20px;}
+  .mood-label{font-size:9px;font-weight:700;color:var(--ink-soft);text-align:center;}
+  .loading{color:var(--muted);font-size:13px;padding:20px 0;}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="header">
+    <p class="eyebrow" id="today-date"></p>
+    <h1>Нить</h1>
+    <p class="sub">Каждый день — ещё один стежок. Не рви нить.</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="habits">Привычки</button>
+    <button class="tab-btn" data-tab="tasks">Задачи</button>
+    <button class="tab-btn" data-tab="mood">Настроение</button>
+    <button class="tab-btn" data-tab="stats">Статистика</button>
+  </div>
+
+  <div class="view active" id="view-habits">
+    <div class="progress-card" id="summary" style="display:none;">
+      <div class="progress-top">
+        <span class="big" id="done-today">0</span>
+        <span class="of">из <span id="total-today">0</span> привычек сегодня</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%;"></div></div>
+    </div>
+    <div id="habit-list"><div class="loading">Загрузка…</div></div>
+    <button class="add-toggle" id="add-toggle">+ добавить привычку</button>
+    <div class="add-form" id="add-form">
+      <input type="text" id="new-name" placeholder="Например: читать 20 минут" maxlength="40">
+      <div class="color-row" id="color-row"></div>
+      <div class="form-actions">
+        <button class="primary" id="save-habit">Добавить</button>
+        <button class="ghost" id="cancel-habit">Отмена</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="view" id="view-tasks">
+    <div id="task-list"><div class="loading">Загрузка…</div></div>
+    <div class="task-input-row">
+      <input type="text" class="task-main" id="new-task" placeholder="Новая задача" maxlength="80">
+      <input type="text" class="task-cat" id="new-task-cat" placeholder="Категория" maxlength="16">
+      <input type="date" id="new-task-date">
+      <button class="primary" id="save-task">Добавить</button>
+    </div>
+  </div>
+
+  <div class="view" id="view-mood">
+    <div class="progress-card">
+      <div class="stat-name" style="margin-bottom:12px;">Как ты сегодня?</div>
+      <div class="mood-picker" id="mood-picker"></div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-name" style="margin-bottom:10px;">Тренд за 2 недели</div>
+      <div class="chart-wrap"><canvas id="mood-chart"></canvas></div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-name" style="margin-bottom:10px;">Календарь настроения</div>
+      <div class="cal-weekdays"><span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span></div>
+      <div class="cal-grid" id="mood-cal"></div>
+    </div>
+  </div>
+
+  <div class="view" id="view-stats">
+    <div id="stats-content"><div class="loading">Загрузка…</div></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script>
+const PALETTE = ['#C9BFEE','#A9DFC4','#F3B8CE','#AAD6F0','#F3DE8E','#F3C4A8'];
+const MOOD_OPTIONS = [
+  {value:5,label:'Отлично',emoji:'😄',color:'#A9DFC4'},
+  {value:4,label:'Хорошо',emoji:'🙂',color:'#AAD6F0'},
+  {value:3,label:'Нормально',emoji:'😐',color:'#F3DE8E'},
+  {value:2,label:'Не очень',emoji:'😕',color:'#F3C4A8'},
+  {value:1,label:'Плохо',emoji:'😢',color:'#F3B8CE'}
+];
+const STORE_KEY = 'nit-habit-data-v3';
+let state = { habits: [], entries: {}, tasks: [], moods: {} };
+let selectedColor = PALETTE[0];
+let notifTimer = null;
+let weeklyChart = null, moodChart = null;
+
+function pad(n){ return n.toString().padStart(2,'0'); }
+function dateKey(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function daysAgo(n){ const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()-n); return d; }
+function entryKey(habitId, dKey){ return habitId+'::'+dKey; }
+const WEEKDAYS = ['вс','пн','вт','ср','чт','пт','сб'];
+
+async function loadState(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw){
+      const loaded = JSON.parse(raw);
+      state = { habits: loaded.habits||[], entries: loaded.entries||{}, tasks: loaded.tasks||[], moods: loaded.moods||{} };
+    }
+  }catch(e){}
+  renderAll();
+  setupReminders();
+}
+async function saveState(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+  catch(e){ console.error('storage save failed', e); }
+}
+
+function computeStreak(habitId){
+  let streak = 0;
+  for(let i=0;i<3650;i++){
+    const dk = dateKey(daysAgo(i));
+    if(state.entries[entryKey(habitId, dk)]) streak++;
+    else { if(i===0) continue; break; }
+  }
+  return streak;
+}
+function longestStreak(habitId){
+  let longest=0, current=0;
+  for(let i=364;i>=0;i--){
+    const dk = dateKey(daysAgo(i));
+    if(state.entries[entryKey(habitId, dk)]){ current++; longest=Math.max(longest,current); }
+    else current=0;
+  }
+  return longest;
+}
+function toggleEntry(habitId, dKey){
+  const k = entryKey(habitId, dKey);
+  if(state.entries[k]) delete state.entries[k]; else state.entries[k] = true;
+  saveState(); renderAll();
+}
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+function renderHeader(){
+  const now = new Date();
+  document.getElementById('today-date').textContent = now.toLocaleDateString('ru-RU', { day:'numeric', month:'long', weekday:'long' });
+}
+
+function renderSummary(){
+  const todayKey = dateKey(new Date());
+  const total = state.habits.length;
+  const done = state.habits.filter(h => state.entries[entryKey(h.id, todayKey)]).length;
+  const el = document.getElementById('summary');
+  if(total === 0){ el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  document.getElementById('done-today').textContent = done;
+  document.getElementById('total-today').textContent = total;
+  document.getElementById('progress-fill').style.width = Math.round((done/total)*100)+'%';
+}
+
+function renderHabitCard(habit){
+  const streak = computeStreak(habit.id);
+  const todayKey = dateKey(new Date());
+  let nodesHtml = '';
+  for(let i=6;i>=0;i--){
+    const d = daysAgo(i);
+    const dk = dateKey(d);
+    const done = !!state.entries[entryKey(habit.id, dk)];
+    const isToday = dk === todayKey;
+    nodesHtml += `<div class="stitch-day"><div class="stitch-wrap">${i<6?`<div class="connector ${done?'done':''}"></div>`:''}<button class="node-btn ${isToday?'today':''}" style="${done?`background:${habit.color};border-color:${habit.color};`:''}" data-habit="${habit.id}" data-date="${dk}"></button></div><span class="day-label">${WEEKDAYS[d.getDay()]}</span></div>`;
+  }
+  return `<div class="habit-card"><div class="habit-top"><div class="habit-name-row"><span class="dot" style="background:${habit.color}"></span><span class="habit-name">${escapeHtml(habit.name)}</span></div><div style="display:flex;align-items:center;gap:6px;"><span class="streak ${streak===0?'zero':''}" style="${streak>0?`background:${habit.color}33;`:''}">${streak>0?streak+' дн. подряд':'начни сегодня'}</span><button class="icon-btn ${habit.reminder?'bell-on':''}" data-bell="${habit.id}" title="Напоминание">⏰</button><button class="icon-btn" data-del="${habit.id}" title="Удалить">✕</button></div></div><div class="stitch-row">${nodesHtml}</div><div class="reminder-row" style="${habit.reminder?'':'display:none;'}"><span>Напомнить в</span><input type="time" value="${habit.reminderTime||'20:00'}" data-reminder-time="${habit.id}"><span style="font-size:11px;">(пока вкладка открыта)</span></div></div>`;
+}
+
+function renderHabits(){
+  const list = document.getElementById('habit-list');
+  list.innerHTML = state.habits.length===0
+    ? `<div class="empty"><p>Пока пусто</p><span>Добавь первую привычку, чтобы начать плести нить.</span></div>`
+    : state.habits.map(renderHabitCard).join('');
+  list.querySelectorAll('.node-btn').forEach(btn=>btn.addEventListener('click', ()=>toggleEntry(btn.dataset.habit, btn.dataset.date)));
+  list.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click', ()=>{
+    const id = btn.dataset.del;
+    if(confirm('Удалить эту привычку и всю её историю?')){
+      state.habits = state.habits.filter(h=>h.id!==id);
+      Object.keys(state.entries).forEach(k=>{ if(k.startsWith(id+'::')) delete state.entries[k]; });
+      saveState(); renderAll();
+    }
+  }));
+  list.querySelectorAll('[data-bell]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    const id = btn.dataset.bell;
+    const habit = state.habits.find(h=>h.id===id);
+    if(!habit.reminder){
+      if('Notification' in window && Notification.permission !== 'granted') await Notification.requestPermission();
+      habit.reminder = true;
+      if(!habit.reminderTime) habit.reminderTime = '20:00';
+    } else { habit.reminder = false; }
+    saveState(); renderAll(); setupReminders();
+  }));
+}
+
+document.addEventListener('change', (e)=>{
+  if(e.target.matches('[data-reminder-time]')){
+    const id = e.target.dataset.reminderTime;
+    const habit = state.habits.find(h=>h.id===id);
+    if(habit){ habit.reminderTime = e.target.value; saveState(); setupReminders(); }
+  }
+});
+
+function taskDueTag(t){
+  if(!t.dueDate) return '';
+  const todayKey = dateKey(new Date());
+  const overdue = t.dueDate < todayKey && !t.done;
+  const d = new Date(t.dueDate+'T00:00:00');
+  const label = d.toLocaleDateString('ru-RU', {day:'numeric', month:'short'});
+  return `<span class="task-tag ${overdue?'overdue':''}">${label}</span>`;
+}
+
+function renderTasks(){
+  const list = document.getElementById('task-list');
+  if(state.tasks.length === 0){
+    list.innerHTML = `<div class="empty"><p>Список задач пуст</p><span>Добавь то, что нужно сделать.</span></div>`;
+    return;
+  }
+  const todayKey = dateKey(new Date());
+  const groups = { overdue:[], today:[], upcoming:[], noDate:[], done:[] };
+  state.tasks.forEach(t=>{
+    if(t.done){ groups.done.push(t); return; }
+    if(!t.dueDate){ groups.noDate.push(t); return; }
+    if(t.dueDate < todayKey) groups.overdue.push(t);
+    else if(t.dueDate === todayKey) groups.today.push(t);
+    else groups.upcoming.push(t);
+  });
+  const sections = [
+    ['Просрочено', groups.overdue], ['Сегодня', groups.today],
+    ['Предстоящие', groups.upcoming], ['Без даты', groups.noDate],
+    ['Завершено', groups.done]
+  ];
+  let html = '';
+  sections.forEach(([title, items])=>{
+    if(items.length===0) return;
+    html += `<div class="task-group-title">${title}</div>`;
+    items.forEach(t=>{
+      html += `<div class="task-item">
+        <button class="task-check ${t.done?'done':''}" data-task="${t.id}"></button>
+        <div class="task-body">
+          <span class="task-text ${t.done?'done':''}">${escapeHtml(t.text)}</span>
+          <div class="task-meta">${t.category?`<span class="task-tag">${escapeHtml(t.category)}</span>`:''}${taskDueTag(t)}</div>
+        </div>
+        <button class="icon-btn" data-taskdel="${t.id}" style="opacity:0.5;">✕</button>
+      </div>`;
+    });
+  });
+  list.innerHTML = html;
+  list.querySelectorAll('[data-task]').forEach(btn=>btn.addEventListener('click', ()=>{
+    const t = state.tasks.find(x=>x.id===btn.dataset.task);
+    t.done = !t.done; saveState(); renderTasks();
+  }));
+  list.querySelectorAll('[data-taskdel]').forEach(btn=>btn.addEventListener('click', ()=>{
+    state.tasks = state.tasks.filter(x=>x.id!==btn.dataset.taskdel);
+    saveState(); renderTasks();
+  }));
+}
+
+function renderMoodPicker(){
+  const todayKey = dateKey(new Date());
+  const current = state.moods[todayKey];
+  const el = document.getElementById('mood-picker');
+  el.innerHTML = MOOD_OPTIONS.map(m=>`
+    <button class="mood-btn ${current===m.value?'selected':''}" data-mood="${m.value}" style="${current===m.value?`background:${m.color}33;`:''}">
+      <span class="mood-emoji">${m.emoji}</span><span class="mood-label">${m.label}</span>
+    </button>`).join('');
+  el.querySelectorAll('[data-mood]').forEach(btn=>btn.addEventListener('click', ()=>{
+    state.moods[todayKey] = parseInt(btn.dataset.mood);
+    saveState(); renderMood();
+  }));
+}
+
+function buildMonthCells(fillFn){
+  const now = new Date();
+  const year = now.getFullYear(), month = now.getMonth();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const offset = (new Date(year, month, 1).getDay()+6)%7;
+  let cells = '';
+  for(let i=0;i<offset;i++) cells += `<div class="cal-cell empty"></div>`;
+  for(let d=1; d<=daysInMonth; d++){
+    const dk = year+'-'+pad(month+1)+'-'+pad(d);
+    const isToday = dk === dateKey(now);
+    const style = fillFn(dk);
+    cells += `<div class="cal-cell ${isToday?'today':''}" style="${style}">${d}</div>`;
+  }
+  return cells;
+}
+
+function renderMoodCalendar(){
+  const el = document.getElementById('mood-cal');
+  el.innerHTML = buildMonthCells(dk=>{
+    const v = state.moods[dk];
+    if(!v) return '';
+    const opt = MOOD_OPTIONS.find(m=>m.value===v);
+    return `background:${opt.color};color:#3D3556;`;
+  });
+}
+
+function renderMoodChart(){
+  const ctx = document.getElementById('mood-chart');
+  if(!ctx || typeof Chart === 'undefined') return;
+  const labels = [], data = [];
+  for(let i=13;i>=0;i--){
+    const d = daysAgo(i);
+    labels.push(d.getDate()+'.'+pad(d.getMonth()+1));
+    data.push(state.moods[dateKey(d)] || null);
+  }
+  if(moodChart) moodChart.destroy();
+  moodChart = new Chart(ctx, {
+    type:'line',
+    data:{ labels, datasets:[{ data, borderColor:'#F3B8CE', backgroundColor:'#F3B8CE', tension:0.3, spanGaps:true, pointRadius:4, pointBackgroundColor:'#F3B8CE' }]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        y:{ min:1, max:5, ticks:{stepSize:1, color:'#847C96'}, grid:{color:'#EEE8F5'} },
+        x:{ ticks:{color:'#847C96', maxRotation:0, autoSkip:true, font:{size:10}}, grid:{display:false} }
+      }
+    }
+  });
+}
+
+function renderMood(){
+  renderMoodPicker();
+  renderMoodCalendar();
+  renderMoodChart();
+}
+
+function renderWeeklyChart(){
+  const ctx = document.getElementById('weekly-chart');
+  if(!ctx || typeof Chart === 'undefined') return;
+  const labels = [], data = [];
+  for(let i=6;i>=0;i--){
+    const d = daysAgo(i);
+    labels.push(WEEKDAYS[d.getDay()]);
+    const dk = dateKey(d);
+    data.push(state.habits.filter(h=>state.entries[entryKey(h.id,dk)]).length);
+  }
+  if(weeklyChart) weeklyChart.destroy();
+  weeklyChart = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ data, backgroundColor:'#C9BFEE', borderRadius:8, maxBarThickness:28 }]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        y:{ beginAtZero:true, ticks:{stepSize:1, color:'#847C96'}, grid:{color:'#EEE8F5'} },
+        x:{ ticks:{color:'#847C96'}, grid:{display:false} }
+      }
+    }
+  });
+}
+
+function renderStats(){
+  const el = document.getElementById('stats-content');
+  if(state.habits.length === 0){
+    el.innerHTML = `<div class="empty"><p>Нет данных</p><span>Статистика появится после первой привычки.</span></div>`;
+    return;
+  }
+  let html = `<div class="stat-block"><div class="stat-name" style="margin-bottom:10px;">Активность за неделю</div><div class="chart-wrap"><canvas id="weekly-chart"></canvas></div></div>`;
+  html += state.habits.map(habit=>{
+    let done30 = 0;
+    for(let i=0;i<30;i++){ if(state.entries[entryKey(habit.id, dateKey(daysAgo(i)))]) done30++; }
+    const pct = Math.round((done30/30)*100);
+    const longest = longestStreak(habit.id);
+    const cells = buildMonthCells(dk=> state.entries[entryKey(habit.id, dk)] ? `background:${habit.color};color:#3D3556;` : '');
+    return `<div class="stat-block">
+      <div class="stat-title"><span class="dot" style="background:${habit.color}"></span><span class="stat-name">${escapeHtml(habit.name)}</span></div>
+      <div class="stat-nums"><span class="stat-num"><b>${pct}%</b> за 30 дней</span><span class="stat-num"><b>${longest}</b> макс. подряд</span></div>
+      <div class="cal-weekdays"><span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span></div>
+      <div class="cal-grid">${cells}</div>
+    </div>`;
+  }).join('');
+  el.innerHTML = html;
+  renderWeeklyChart();
+}
+
+function renderAll(){
+  renderHeader(); renderSummary(); renderHabits(); renderTasks(); renderMood(); renderStats();
+}
+
+function renderColorRow(){
+  const row = document.getElementById('color-row');
+  row.innerHTML = PALETTE.map(c=>`<div class="color-swatch ${c===selectedColor?'selected':''}" style="background:${c}" data-color="${c}"></div>`).join('');
+  row.querySelectorAll('.color-swatch').forEach(sw=>sw.addEventListener('click', ()=>{ selectedColor = sw.dataset.color; renderColorRow(); }));
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-'+btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab === 'stats') renderWeeklyChart();
+    if(btn.dataset.tab === 'mood') renderMoodChart();
+  });
+});
+
+document.getElementById('add-toggle').addEventListener('click', ()=>{
+  document.getElementById('add-form').classList.add('open');
+  document.getElementById('add-toggle').style.display = 'none';
+  document.getElementById('new-name').focus();
+});
+document.getElementById('cancel-habit').addEventListener('click', closeForm);
+function closeForm(){
+  document.getElementById('add-form').classList.remove('open');
+  document.getElementById('add-toggle').style.display = 'block';
+  document.getElementById('new-name').value = '';
+}
+document.getElementById('save-habit').addEventListener('click', ()=>{
+  const name = document.getElementById('new-name').value.trim();
+  if(!name) return;
+  state.habits.push({ id:'h'+Date.now(), name, color:selectedColor, reminder:false, reminderTime:'20:00' });
+  saveState(); closeForm(); renderAll();
+});
+document.getElementById('new-name').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('save-habit').click(); });
+
+document.getElementById('save-task').addEventListener('click', ()=>{
+  const textInp = document.getElementById('new-task');
+  const catInp = document.getElementById('new-task-cat');
+  const dateInp = document.getElementById('new-task-date');
+  const text = textInp.value.trim();
+  if(!text) return;
+  state.tasks.push({ id:'t'+Date.now(), text, done:false, category: catInp.value.trim()||null, dueDate: dateInp.value||null });
+  textInp.value=''; catInp.value=''; dateInp.value='';
+  saveState(); renderTasks();
+});
+document.getElementById('new-task').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('save-task').click(); });
+
+function setupReminders(){
+  if(notifTimer) clearInterval(notifTimer);
+  notifTimer = setInterval(()=>{
+    if(!('Notification' in window) || Notification.permission !== 'granted') return;
+    const now = new Date();
+    const hhmm = pad(now.getHours())+':'+pad(now.getMinutes());
+    const todayKey = dateKey(now);
+    state.habits.forEach(h=>{
+      if(h.reminder && h.reminderTime === hhmm){
+        const alreadyDone = state.entries[entryKey(h.id, todayKey)];
+        if(!alreadyDone && h.lastNotified !== todayKey){
+          new Notification('Нить', { body: `Не забудь: ${h.name}` });
+          h.lastNotified = todayKey;
+          saveState();
+        }
+      }
+    });
+  }, 20000);
+}
+
+renderColorRow();
+loadState();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
