@@ -294,7 +294,7 @@ function renderHabitCard(habit){
     const isToday = dk === todayKey;
     nodesHtml += `<div class="stitch-day"><div class="stitch-wrap">${i<6?`<div class="connector ${done?'done':''}"></div>`:''}<button class="node-btn ${isToday?'today':''}" style="${done?`background:${habit.color};border-color:${habit.color};`:''}" data-habit="${habit.id}" data-date="${dk}"></button></div><span class="day-label">${WEEKDAYS[d.getDay()]}</span></div>`;
   }
-  return `<div class="habit-card"><div class="habit-top"><div class="habit-name-row"><span class="dot" style="background:${habit.color}"></span><span class="habit-name">${escapeHtml(habit.name)}</span></div><div style="display:flex;align-items:center;gap:6px;"><span class="streak ${streak===0?'zero':''}" style="${streak>0?`background:${habit.color}33;`:''}">${streak>0?streak+' дн. подряд':'начни сегодня'}</span><button class="icon-btn ${habit.reminder?'bell-on':''}" data-bell="${habit.id}" title="Напоминание">⏰</button><button class="icon-btn" data-del="${habit.id}" title="Удалить">✕</button></div></div><div class="stitch-row">${nodesHtml}</div><div class="reminder-row" style="${habit.reminder?'':'display:none;'}"><span>Напомнить в</span><input type="time" value="${habit.reminderTime||'20:00'}" data-reminder-time="${habit.id}"><span style="font-size:11px;">(пока вкладка открыта)</span></div></div>`;
+  return `<div class="habit-card"><div class="habit-top"><div class="habit-name-row"><span class="dot" style="background:${habit.color}"></span><span class="habit-name">${escapeHtml(habit.name)}</span></div><div style="display:flex;align-items:center;gap:6px;"><span class="streak ${streak===0?'zero':''}" style="${streak>0?`background:${habit.color}33;`:''}">${streak>0?streak+' дн. подряд':'начни сегодня'}</span><button class="icon-btn ${habit.reminder?'bell-on':''}" data-bell="${habit.id}" title="Напоминание">⏰</button><button class="icon-btn" data-del="${habit.id}" title="Удалить">✕</button></div></div><div class="stitch-row">${nodesHtml}</div><div class="reminder-row" style="${habit.reminder?'':'display:none;'}"><span>Напомнить в</span><input type="time" value="${habit.reminderTime||'20:00'}" data-reminder-time="${habit.id}"><span style="font-size:11px;">${isNativeApp()?'':'(пока вкладка открыта)'}</span></div></div>`;
 }
 
 function renderHabits(){
@@ -315,10 +315,14 @@ function renderHabits(){
     const id = btn.dataset.bell;
     const habit = state.habits.find(h=>h.id===id);
     if(!habit.reminder){
-      if('Notification' in window && Notification.permission !== 'granted') await Notification.requestPermission();
+      if(!isNativeApp() && 'Notification' in window && Notification.permission !== 'granted') await Notification.requestPermission();
       habit.reminder = true;
       if(!habit.reminderTime) habit.reminderTime = '20:00';
-    } else { habit.reminder = false; }
+      await scheduleNativeReminder(habit);
+    } else {
+      habit.reminder = false;
+      await cancelNativeReminder(habit);
+    }
     saveState(); renderAll(); setupReminders();
   }));
 }
@@ -327,9 +331,47 @@ document.addEventListener('change', (e)=>{
   if(e.target.matches('[data-reminder-time]')){
     const id = e.target.dataset.reminderTime;
     const habit = state.habits.find(h=>h.id===id);
-    if(habit){ habit.reminderTime = e.target.value; saveState(); setupReminders(); }
+    if(habit){
+      habit.reminderTime = e.target.value;
+      saveState();
+      if(habit.reminder) scheduleNativeReminder(habit);
+      setupReminders();
+    }
   }
 });
+
+function isNativeApp(){
+  return !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform());
+}
+function hashIdToInt(id){
+  let hash = 0;
+  for(let i=0;i<id.length;i++){ hash = (hash*31 + id.charCodeAt(i)) | 0; }
+  return Math.abs(hash) % 2000000000;
+}
+async function scheduleNativeReminder(habit){
+  if(!isNativeApp()) return;
+  try{
+    const { LocalNotifications } = Capacitor.Plugins;
+    const perm = await LocalNotifications.requestPermissions();
+    if(perm.display !== 'granted') return;
+    const [hh, mm] = (habit.reminderTime||'20:00').split(':').map(Number);
+    await LocalNotifications.schedule({
+      notifications: [{
+        id: hashIdToInt(habit.id),
+        title: 'Нить',
+        body: `Не забудь: ${habit.name}`,
+        schedule: { on: { hour: hh, minute: mm }, repeats: true, allowWhileIdle: true }
+      }]
+    });
+  }catch(e){ console.error('native reminder schedule failed', e); }
+}
+async function cancelNativeReminder(habit){
+  if(!isNativeApp()) return;
+  try{
+    const { LocalNotifications } = Capacitor.Plugins;
+    await LocalNotifications.cancel({ notifications: [{ id: hashIdToInt(habit.id) }] });
+  }catch(e){ console.error('native reminder cancel failed', e); }
+}
 
 function taskDueTag(t){
   if(!t.dueDate) return '';
@@ -587,6 +629,10 @@ document.getElementById('save-task').addEventListener('click', ()=>{
 document.getElementById('new-task').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('save-task').click(); });
 
 function setupReminders(){
+  if(isNativeApp()){
+    state.habits.forEach(h=>{ if(h.reminder) scheduleNativeReminder(h); });
+    return;
+  }
   if(notifTimer) clearInterval(notifTimer);
   notifTimer = setInterval(()=>{
     if(!('Notification' in window) || Notification.permission !== 'granted') return;
@@ -609,7 +655,7 @@ function setupReminders(){
 renderColorRow();
 loadState();
 
-if('serviceWorker' in navigator){
+if('serviceWorker' in navigator && !isNativeApp()){
   window.addEventListener('load', ()=>{
     navigator.serviceWorker.register('service-worker.js').catch(()=>{});
   });
