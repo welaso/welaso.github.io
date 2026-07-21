@@ -63,12 +63,18 @@
   .stitch-row{display:flex;align-items:center;}
   .stitch-day{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;}
   .stitch-wrap{display:flex;align-items:center;width:100%;}
-  .node-btn{width:27px;height:27px;border-radius:50%;border:2px solid var(--line);background:var(--bg);cursor:pointer;flex-shrink:0;transition:transform .1s;}
+  .node-btn{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line);background:var(--bg);cursor:pointer;flex-shrink:0;transition:transform .1s;padding:0;}
   .node-btn:active{transform:scale(0.9);}
-  .node-btn.today{box-shadow:0 0 0 3px var(--lavender-soft);}
+  .node-btn.today{width:30px;height:30px;border:2.5px solid var(--lavender);background:var(--card);box-shadow:0 0 0 4px var(--lavender-soft);}
+  .node-btn.future{border:1.5px dashed var(--line);background:transparent;cursor:default;}
   .day-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:lowercase;}
+  .day-label.future{color:var(--line);}
+  .day-label.today{color:var(--ink);font-weight:800;}
   .connector{height:2px;flex:1;background:var(--line);}
   .connector.done{background:var(--lavender);}
+  .connector.future{background:transparent;border-top:2px dashed var(--line);height:0;}
+  .bell-icon{width:16px;height:16px;stroke:var(--muted);fill:none;stroke-width:1.8;vertical-align:-3px;}
+  .bell-icon.on{stroke:var(--lavender);fill:var(--lavender-soft);}
   .reminder-row{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);}
   .reminder-row input[type=time]{border:1px solid var(--line);border-radius:8px;padding:3px 6px;font-size:12px;background:var(--bg);color:var(--ink);font-family:'Nunito',sans-serif;}
   .empty{padding:40px 20px;text-align:center;color:var(--muted);border:2px dashed var(--line);border-radius:20px;}
@@ -118,13 +124,6 @@
   .cal-cell.today{box-shadow:inset 0 0 0 2px var(--lavender);}
   .chart-wrap{position:relative;height:160px;}
   .mood-picker{display:flex;gap:8px;justify-content:space-between;}
-  .mood-date-nav{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:14px;}
-  .mood-date-label{font-family:'Fredoka',sans-serif;font-size:15px;font-weight:600;color:var(--ink);min-width:150px;text-align:center;}
-  .mood-nav-btn{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--bg);color:var(--ink-soft);font-size:16px;cursor:pointer;line-height:1;}
-  .mood-nav-btn:disabled{opacity:0.3;cursor:default;}
-  .mood-nav-btn:not(:disabled):hover{background:var(--lavender-soft);color:var(--ink);}
-  .cal-cell.clickable{cursor:pointer;}
-  .cal-cell.clickable:hover{outline:1.5px solid var(--lavender);}
   .mood-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:14px;border:2px solid var(--line);background:var(--bg);cursor:pointer;}
   .mood-btn.selected{border-color:var(--ink);}
   .mood-emoji{font-size:20px;}
@@ -179,11 +178,7 @@
 
   <div class="view" id="view-mood">
     <div class="progress-card">
-      <div class="mood-date-nav">
-        <button class="mood-nav-btn" id="mood-prev">‹</button>
-        <span class="mood-date-label" id="mood-date-label"></span>
-        <button class="mood-nav-btn" id="mood-next">›</button>
-      </div>
+      <div class="stat-name" style="margin-bottom:12px;">Как ты сегодня?</div>
       <div class="mood-picker" id="mood-picker"></div>
     </div>
     <div class="stat-block">
@@ -215,7 +210,6 @@ const MOOD_OPTIONS = [
 const STORE_KEY = 'nit-habit-data-v3';
 let state = { habits: [], entries: {}, tasks: [], moods: {} };
 let selectedColor = PALETTE[0];
-let selectedMoodDate = null;
 let notifTimer = null;
 let weeklyChart = null, moodChart = null;
 
@@ -283,18 +277,36 @@ function renderSummary(){
   document.getElementById('progress-fill').style.width = Math.round((done/total)*100)+'%';
 }
 
+const WEEKDAYS_FIXED = ['пн','вт','ср','чт','пт','сб','вс'];
+function getMondayOfWeek(d){
+  const day = d.getDay();
+  const diff = (day===0?-6:1-day);
+  const monday = new Date(d);
+  monday.setDate(d.getDate()+diff);
+  monday.setHours(0,0,0,0);
+  return monday;
+}
+const BELL_SVG = `<svg class="bell-icon" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`;
+
 function renderHabitCard(habit){
   const streak = computeStreak(habit.id);
   const todayKey = dateKey(new Date());
+  const monday = getMondayOfWeek(new Date());
   let nodesHtml = '';
-  for(let i=6;i>=0;i--){
-    const d = daysAgo(i);
+  for(let i=0;i<7;i++){
+    const d = new Date(monday);
+    d.setDate(monday.getDate()+i);
     const dk = dateKey(d);
     const done = !!state.entries[entryKey(habit.id, dk)];
     const isToday = dk === todayKey;
-    nodesHtml += `<div class="stitch-day"><div class="stitch-wrap">${i<6?`<div class="connector ${done?'done':''}"></div>`:''}<button class="node-btn ${isToday?'today':''}" style="${done?`background:${habit.color};border-color:${habit.color};`:''}" data-habit="${habit.id}" data-date="${dk}"></button></div><span class="day-label">${WEEKDAYS[d.getDay()]}</span></div>`;
+    const isFuture = dk > todayKey;
+    const nodeClass = `${isToday?'today':''} ${isFuture?'future':''}`;
+    const nodeStyle = done ? `background:${habit.color};border-color:${habit.color};` : '';
+    const clickable = !isFuture;
+    const connectorClass = isFuture ? 'future' : (done ? 'done':'');
+    nodesHtml += `<div class="stitch-day"><div class="stitch-wrap">${i>0?`<div class="connector ${connectorClass}"></div>`:''}<button class="node-btn ${nodeClass}" style="${nodeStyle}" ${clickable?`data-habit="${habit.id}" data-date="${dk}"`:'disabled'}></button></div><span class="day-label ${isToday?'today':''} ${isFuture?'future':''}">${WEEKDAYS_FIXED[i]}</span></div>`;
   }
-  return `<div class="habit-card"><div class="habit-top"><div class="habit-name-row"><span class="dot" style="background:${habit.color}"></span><span class="habit-name">${escapeHtml(habit.name)}</span></div><div style="display:flex;align-items:center;gap:6px;"><span class="streak ${streak===0?'zero':''}" style="${streak>0?`background:${habit.color}33;`:''}">${streak>0?streak+' дн. подряд':'начни сегодня'}</span><button class="icon-btn ${habit.reminder?'bell-on':''}" data-bell="${habit.id}" title="Напоминание">⏰</button><button class="icon-btn" data-del="${habit.id}" title="Удалить">✕</button></div></div><div class="stitch-row">${nodesHtml}</div><div class="reminder-row" style="${habit.reminder?'':'display:none;'}"><span>Напомнить в</span><input type="time" value="${habit.reminderTime||'20:00'}" data-reminder-time="${habit.id}"><span style="font-size:11px;">${isNativeApp()?'':'(пока вкладка открыта)'}</span></div></div>`;
+  return `<div class="habit-card"><div class="habit-top"><div class="habit-name-row"><span class="dot" style="background:${habit.color}"></span><span class="habit-name">${escapeHtml(habit.name)}</span></div><div style="display:flex;align-items:center;gap:8px;"><span class="streak ${streak===0?'zero':''}" style="${streak>0?`background:${habit.color}33;`:''}">${streak>0?streak+' дн. подряд':'начни сегодня'}</span><button class="icon-btn ${habit.reminder?'bell-on':''}" data-bell="${habit.id}" title="Напоминание">${BELL_SVG.replace('bell-icon', habit.reminder?'bell-icon on':'bell-icon')}</button><button class="icon-btn" data-del="${habit.id}" title="Удалить">✕</button></div></div><div class="stitch-row">${nodesHtml}</div><div class="reminder-row" style="${habit.reminder?'':'display:none;'}"><span>Напомнить в</span><input type="time" value="${habit.reminderTime||'20:00'}" data-reminder-time="${habit.id}"><span style="font-size:11px;">(пока вкладка открыта)</span></div></div>`;
 }
 
 function renderHabits(){
@@ -315,14 +327,10 @@ function renderHabits(){
     const id = btn.dataset.bell;
     const habit = state.habits.find(h=>h.id===id);
     if(!habit.reminder){
-      if(!isNativeApp() && 'Notification' in window && Notification.permission !== 'granted') await Notification.requestPermission();
+      if('Notification' in window && Notification.permission !== 'granted') await Notification.requestPermission();
       habit.reminder = true;
       if(!habit.reminderTime) habit.reminderTime = '20:00';
-      await scheduleNativeReminder(habit);
-    } else {
-      habit.reminder = false;
-      await cancelNativeReminder(habit);
-    }
+    } else { habit.reminder = false; }
     saveState(); renderAll(); setupReminders();
   }));
 }
@@ -331,47 +339,9 @@ document.addEventListener('change', (e)=>{
   if(e.target.matches('[data-reminder-time]')){
     const id = e.target.dataset.reminderTime;
     const habit = state.habits.find(h=>h.id===id);
-    if(habit){
-      habit.reminderTime = e.target.value;
-      saveState();
-      if(habit.reminder) scheduleNativeReminder(habit);
-      setupReminders();
-    }
+    if(habit){ habit.reminderTime = e.target.value; saveState(); setupReminders(); }
   }
 });
-
-function isNativeApp(){
-  return !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform());
-}
-function hashIdToInt(id){
-  let hash = 0;
-  for(let i=0;i<id.length;i++){ hash = (hash*31 + id.charCodeAt(i)) | 0; }
-  return Math.abs(hash) % 2000000000;
-}
-async function scheduleNativeReminder(habit){
-  if(!isNativeApp()) return;
-  try{
-    const { LocalNotifications } = Capacitor.Plugins;
-    const perm = await LocalNotifications.requestPermissions();
-    if(perm.display !== 'granted') return;
-    const [hh, mm] = (habit.reminderTime||'20:00').split(':').map(Number);
-    await LocalNotifications.schedule({
-      notifications: [{
-        id: hashIdToInt(habit.id),
-        title: 'Нить',
-        body: `Не забудь: ${habit.name}`,
-        schedule: { on: { hour: hh, minute: mm }, repeats: true, allowWhileIdle: true }
-      }]
-    });
-  }catch(e){ console.error('native reminder schedule failed', e); }
-}
-async function cancelNativeReminder(habit){
-  if(!isNativeApp()) return;
-  try{
-    const { LocalNotifications } = Capacitor.Plugins;
-    await LocalNotifications.cancel({ notifications: [{ id: hashIdToInt(habit.id) }] });
-  }catch(e){ console.error('native reminder cancel failed', e); }
-}
 
 function taskDueTag(t){
   if(!t.dueDate) return '';
@@ -420,7 +390,9 @@ function renderTasks(){
   list.innerHTML = html;
   list.querySelectorAll('[data-task]').forEach(btn=>btn.addEventListener('click', ()=>{
     const t = state.tasks.find(x=>x.id===btn.dataset.task);
-    t.done = !t.done; saveState(); renderTasks();
+    t.done = !t.done;
+    t.completedAt = t.done ? dateKey(new Date()) : null;
+    saveState(); renderTasks();
   }));
   list.querySelectorAll('[data-taskdel]').forEach(btn=>btn.addEventListener('click', ()=>{
     state.tasks = state.tasks.filter(x=>x.id!==btn.dataset.taskdel);
@@ -429,55 +401,31 @@ function renderTasks(){
 }
 
 function renderMoodPicker(){
-  if(!selectedMoodDate) selectedMoodDate = dateKey(new Date());
   const todayKey = dateKey(new Date());
-  const current = state.moods[selectedMoodDate];
-
-  const labelDate = new Date(selectedMoodDate+'T00:00:00');
-  const label = labelDate.toLocaleDateString('ru-RU', { day:'numeric', month:'long' });
-  document.getElementById('mood-date-label').textContent = selectedMoodDate === todayKey ? `Сегодня, ${label}` : label;
-  document.getElementById('mood-next').disabled = selectedMoodDate >= todayKey;
-
+  const current = state.moods[todayKey];
   const el = document.getElementById('mood-picker');
   el.innerHTML = MOOD_OPTIONS.map(m=>`
     <button class="mood-btn ${current===m.value?'selected':''}" data-mood="${m.value}" style="${current===m.value?`background:${m.color}33;`:''}">
       <span class="mood-emoji">${m.emoji}</span><span class="mood-label">${m.label}</span>
     </button>`).join('');
   el.querySelectorAll('[data-mood]').forEach(btn=>btn.addEventListener('click', ()=>{
-    state.moods[selectedMoodDate] = parseInt(btn.dataset.mood);
+    state.moods[todayKey] = parseInt(btn.dataset.mood);
     saveState(); renderMood();
   }));
 }
 
-document.getElementById('mood-prev').addEventListener('click', ()=>{
-  const d = new Date(selectedMoodDate+'T00:00:00');
-  d.setDate(d.getDate()-1);
-  selectedMoodDate = dateKey(d);
-  renderMood();
-});
-document.getElementById('mood-next').addEventListener('click', ()=>{
-  const todayKey = dateKey(new Date());
-  if(selectedMoodDate >= todayKey) return;
-  const d = new Date(selectedMoodDate+'T00:00:00');
-  d.setDate(d.getDate()+1);
-  selectedMoodDate = dateKey(d);
-  renderMood();
-});
-
-function buildMonthCells(fillFn, clickable){
+function buildMonthCells(fillFn){
   const now = new Date();
   const year = now.getFullYear(), month = now.getMonth();
   const daysInMonth = new Date(year, month+1, 0).getDate();
   const offset = (new Date(year, month, 1).getDay()+6)%7;
-  const todayKey = dateKey(now);
   let cells = '';
   for(let i=0;i<offset;i++) cells += `<div class="cal-cell empty"></div>`;
   for(let d=1; d<=daysInMonth; d++){
     const dk = year+'-'+pad(month+1)+'-'+pad(d);
-    const isToday = dk === todayKey;
+    const isToday = dk === dateKey(now);
     const style = fillFn(dk);
-    const canClick = clickable && dk <= todayKey;
-    cells += `<div class="cal-cell ${isToday?'today':''} ${canClick?'clickable':''}" style="${style}" ${canClick?`data-day="${dk}"`:''}>${d}</div>`;
+    cells += `<div class="cal-cell ${isToday?'today':''}" style="${style}">${d}</div>`;
   }
   return cells;
 }
@@ -489,13 +437,6 @@ function renderMoodCalendar(){
     if(!v) return '';
     const opt = MOOD_OPTIONS.find(m=>m.value===v);
     return `background:${opt.color};color:#3D3556;`;
-  }, true);
-  el.querySelectorAll('[data-day]').forEach(cell=>{
-    cell.addEventListener('click', ()=>{
-      selectedMoodDate = cell.dataset.day;
-      renderMood();
-      document.querySelector('#view-mood .progress-card').scrollIntoView({behavior:'smooth', block:'start'});
-    });
   });
 }
 
@@ -552,28 +493,95 @@ function renderWeeklyChart(){
   });
 }
 
-function renderStats(){
-  const el = document.getElementById('stats-content');
-  if(state.habits.length === 0){
-    el.innerHTML = `<div class="empty"><p>Нет данных</p><span>Статистика появится после первой привычки.</span></div>`;
-    return;
+let tasksWeeklyChart = null;
+function renderTasksWeeklyChart(){
+  const ctx = document.getElementById('tasks-weekly-chart');
+  if(!ctx || typeof Chart === 'undefined') return;
+  const labels = [], data = [];
+  for(let i=6;i>=0;i--){
+    const d = daysAgo(i);
+    labels.push(WEEKDAYS[d.getDay()]);
+    const dk = dateKey(d);
+    data.push(state.tasks.filter(t=>t.completedAt===dk).length);
   }
-  let html = `<div class="stat-block"><div class="stat-name" style="margin-bottom:10px;">Активность за неделю</div><div class="chart-wrap"><canvas id="weekly-chart"></canvas></div></div>`;
-  html += state.habits.map(habit=>{
-    let done30 = 0;
-    for(let i=0;i<30;i++){ if(state.entries[entryKey(habit.id, dateKey(daysAgo(i)))]) done30++; }
-    const pct = Math.round((done30/30)*100);
-    const longest = longestStreak(habit.id);
-    const cells = buildMonthCells(dk=> state.entries[entryKey(habit.id, dk)] ? `background:${habit.color};color:#3D3556;` : '');
-    return `<div class="stat-block">
-      <div class="stat-title"><span class="dot" style="background:${habit.color}"></span><span class="stat-name">${escapeHtml(habit.name)}</span></div>
-      <div class="stat-nums"><span class="stat-num"><b>${pct}%</b> за 30 дней</span><span class="stat-num"><b>${longest}</b> макс. подряд</span></div>
-      <div class="cal-weekdays"><span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span></div>
-      <div class="cal-grid">${cells}</div>
+  if(tasksWeeklyChart) tasksWeeklyChart.destroy();
+  tasksWeeklyChart = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ data, backgroundColor:'#A9DFC4', borderRadius:8, maxBarThickness:28 }]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        y:{ beginAtZero:true, ticks:{stepSize:1, color:'#847C96'}, grid:{color:'#EEE8F5'} },
+        x:{ ticks:{color:'#847C96'}, grid:{display:false} }
+      }
+    }
+  });
+}
+
+function renderTaskStatsHTML(){
+  const todayKey = dateKey(new Date());
+  const total = state.tasks.length;
+  const completed = state.tasks.filter(t=>t.done).length;
+  const overdue = state.tasks.filter(t=>!t.done && t.dueDate && t.dueDate < todayKey).length;
+
+  const catMap = {};
+  state.tasks.forEach(t=>{
+    const cat = t.category || 'Без категории';
+    if(!catMap[cat]) catMap[cat] = {done:0, total:0};
+    catMap[cat].total++;
+    if(t.done) catMap[cat].done++;
+  });
+  const catRows = Object.entries(catMap).map(([cat,v])=>{
+    const pct = Math.round((v.done/v.total)*100);
+    return `<div style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span style="color:var(--ink);font-weight:600;">${escapeHtml(cat)}</span><span style="color:var(--ink-soft);">${v.done}/${v.total}</span></div>
+      <div style="height:6px;background:var(--mint-soft);border-radius:10px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--mint);"></div></div>
     </div>`;
   }).join('');
+
+  return `<div class="stat-block">
+    <div class="stat-name" style="margin-bottom:10px;">Задачи за неделю</div>
+    <div class="chart-wrap"><canvas id="tasks-weekly-chart"></canvas></div>
+  </div>
+  <div class="stat-block">
+    <div class="stat-nums" style="flex-wrap:wrap;gap:16px;">
+      <span class="stat-num"><b>${total}</b> всего</span>
+      <span class="stat-num"><b>${completed}</b> выполнено</span>
+      <span class="stat-num"><b>${overdue}</b> просрочено</span>
+    </div>
+  </div>
+  ${Object.keys(catMap).length>0 ? `<div class="stat-block"><div class="stat-name" style="margin-bottom:10px;">По категориям</div>${catRows}</div>` : ''}`;
+}
+
+function renderStats(){
+  const el = document.getElementById('stats-content');
+  if(state.habits.length === 0 && state.tasks.length === 0){
+    el.innerHTML = `<div class="empty"><p>Нет данных</p><span>Статистика появится после первой привычки или задачи.</span></div>`;
+    return;
+  }
+  let html = '';
+  if(state.habits.length > 0){
+    html += `<div class="stat-block"><div class="stat-name" style="margin-bottom:10px;">Привычки за неделю</div><div class="chart-wrap"><canvas id="weekly-chart"></canvas></div></div>`;
+    html += state.habits.map(habit=>{
+      let done30 = 0;
+      for(let i=0;i<30;i++){ if(state.entries[entryKey(habit.id, dateKey(daysAgo(i)))]) done30++; }
+      const pct = Math.round((done30/30)*100);
+      const longest = longestStreak(habit.id);
+      const cells = buildMonthCells(dk=> state.entries[entryKey(habit.id, dk)] ? `background:${habit.color};color:#3D3556;` : '');
+      return `<div class="stat-block">
+        <div class="stat-title"><span class="dot" style="background:${habit.color}"></span><span class="stat-name">${escapeHtml(habit.name)}</span></div>
+        <div class="stat-nums"><span class="stat-num"><b>${pct}%</b> за 30 дней</span><span class="stat-num"><b>${longest}</b> макс. подряд</span></div>
+        <div class="cal-weekdays"><span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span></div>
+        <div class="cal-grid">${cells}</div>
+      </div>`;
+    }).join('');
+  }
+  if(state.tasks.length > 0){
+    html += renderTaskStatsHTML();
+  }
   el.innerHTML = html;
-  renderWeeklyChart();
+  if(state.habits.length > 0) renderWeeklyChart();
+  if(state.tasks.length > 0) renderTasksWeeklyChart();
 }
 
 function renderAll(){
@@ -592,8 +600,8 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('view-'+btn.dataset.tab).classList.add('active');
-    if(btn.dataset.tab === 'stats') renderStats();
-    if(btn.dataset.tab === 'mood') renderMood();
+    if(btn.dataset.tab === 'stats') renderWeeklyChart();
+    if(btn.dataset.tab === 'mood') renderMoodChart();
   });
 });
 
@@ -629,10 +637,6 @@ document.getElementById('save-task').addEventListener('click', ()=>{
 document.getElementById('new-task').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('save-task').click(); });
 
 function setupReminders(){
-  if(isNativeApp()){
-    state.habits.forEach(h=>{ if(h.reminder) scheduleNativeReminder(h); });
-    return;
-  }
   if(notifTimer) clearInterval(notifTimer);
   notifTimer = setInterval(()=>{
     if(!('Notification' in window) || Notification.permission !== 'granted') return;
@@ -655,7 +659,7 @@ function setupReminders(){
 renderColorRow();
 loadState();
 
-if('serviceWorker' in navigator && !isNativeApp()){
+if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
     navigator.serviceWorker.register('service-worker.js').catch(()=>{});
   });
